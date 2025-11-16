@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Route Selector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            color: #333;
+            background-color: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+            animation: slideIn 0.4s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .bus-info {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .bus-info p {
+            margin: 8px 0;
+            color: #555;
+            font-size: 15px;
+        }
+
+        .bus-info strong {
+            color: #667eea;
+        }
+
+        .error {
+            color: #e74c3c;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .current-time {
+            text-align: center;
+            margin-top: 20px;
+            color: #777;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 Bus Route Selector</h1>
+
+        <form id="busForm">
+            <div class="form-group">
+                <label for="origin">Origin</label>
+                <select id="origin" required>
+                    <option value="">Select origin...</option>
+                    <option value="Downtown">Downtown</option>
+                    <option value="Airport">Airport</option>
+                    <option value="University">University</option>
+                    <option value="Mall">Shopping Mall</option>
+                    <option value="Hospital">Hospital</option>
+                    <option value="Station">Train Station</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="destination">Destination</label>
+                <select id="destination" required>
+                    <option value="">Select destination...</option>
+                    <option value="Downtown">Downtown</option>
+                    <option value="Airport">Airport</option>
+                    <option value="University">University</option>
+                    <option value="Mall">Shopping Mall</option>
+                    <option value="Hospital">Hospital</option>
+                    <option value="Station">Train Station</option>
+                </select>
+            </div>
+
+            <button type="submit">Find Next Bus</button>
+        </form>
+
+        <div id="result" class="result">
+            <h2>Next Available Bus</h2>
+            <div class="bus-info" id="busInfo"></div>
+        </div>
+
+        <div class="current-time">
+            Current time: <span id="currentTime"></span>
+        </div>
+    </div>
+
+    <script>
+        // Bus schedule data (24-hour format)
+        const busSchedules = {
+            'Downtown-Airport': ['06:00', '07:30', '09:00', '11:00', '13:30', '15:00', '17:00', '19:00', '21:00'],
+            'Downtown-University': ['06:15', '07:00', '08:00', '09:30', '12:00', '14:30', '16:30', '18:00', '20:00'],
+            'Downtown-Mall': ['07:00', '09:00', '11:30', '13:00', '15:30', '17:30', '19:30', '21:30'],
+            'Downtown-Hospital': ['06:30', '08:30', '10:30', '12:30', '14:30', '16:30', '18:30', '20:30'],
+            'Downtown-Station': ['06:00', '07:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+            'Airport-Downtown': ['06:30', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+            'Airport-University': ['07:00', '09:30', '12:30', '15:00', '17:30', '20:00'],
+            'Airport-Mall': ['08:00', '11:00', '14:00', '17:00', '20:00'],
+            'Airport-Hospital': ['07:30', '10:00', '13:00', '16:00', '19:00'],
+            'Airport-Station': ['06:45', '09:00', '12:00', '15:00', '18:00', '21:00'],
+            'University-Downtown': ['06:45', '08:00', '10:00', '12:30', '15:00', '17:00', '19:00', '21:00'],
+            'University-Airport': ['07:30', '10:00', '13:00', '15:30', '18:00', '20:30'],
+            'University-Mall': ['07:00', '09:00', '11:00', '13:30', '16:00', '18:30', '21:00'],
+            'University-Hospital': ['06:30', '08:30', '11:00', '13:30', '16:00', '18:00', '20:00'],
+            'University-Station': ['06:00', '08:00', '10:30', '13:00', '15:30', '17:30', '19:30', '21:30'],
+            'Mall-Downtown': ['07:30', '09:30', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+            'Mall-Airport': ['08:30', '11:30', '14:30', '17:30', '20:30'],
+            'Mall-University': ['07:15', '09:15', '11:15', '14:00', '16:30', '19:00', '21:30'],
+            'Mall-Hospital': ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
+            'Mall-Station': ['07:00', '09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00'],
+            'Hospital-Downtown': ['07:00', '09:00', '11:00', '13:00', '15:00', '17:00', '19:00', '21:00'],
+            'Hospital-Airport': ['08:00', '10:30', '13:30', '16:30', '19:30'],
+            'Hospital-University': ['07:00', '09:00', '11:30', '14:00', '16:30', '18:30', '20:30'],
+            'Hospital-Mall': ['08:30', '10:30', '12:30', '14:30', '16:30', '18:30', '20:30'],
+            'Hospital-Station': ['06:30', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'],
+            'Station-Downtown': ['06:30', '07:30', '08:30', '10:30', '12:30', '14:30', '16:30', '18:30', '20:30', '22:30'],
+            'Station-Airport': ['07:15', '09:30', '12:30', '15:30', '18:30', '21:30'],
+            'Station-University': ['06:30', '08:30', '11:00', '13:30', '16:00', '18:00', '20:00', '22:00'],
+            'Station-Mall': ['07:30', '09:30', '11:30', '13:30', '15:30', '17:30', '19:30', '21:30'],
+            'Station-Hospital': ['07:00', '08:30', '10:30', '12:30', '14:30', '16:30', '18:30', '20:30']
+        };
+
+        // Update current time display
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        // Convert time string to minutes since midnight
+        function timeToMinutes(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        // Convert minutes to time string
+        function minutesToTime(minutes) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        }
+
+        // Format time for display
+        function formatTime(timeStr, isTomorrow = false) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const period = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours % 12 || 12;
+            const dayLabel = isTomorrow ? ' (Tomorrow)' : '';
+            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}${dayLabel}`;
+        }
+
+        // Find next bus
+        function findNextBus(origin, destination) {
+            if (origin === destination) {
+                return { error: 'Origin and destination cannot be the same.' };
+            }
+
+            const routeKey = `${origin}-${destination}`;
+            const schedule = busSchedules[routeKey];
+
+            if (!schedule) {
+                return { error: 'No bus route available for this selection.' };
+            }
+
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+            // Find next bus today
+            for (const busTime of schedule) {
+                const busMinutes = timeToMinutes(busTime);
+                if (busMinutes > currentMinutes) {
+                    return {
+                        time: busTime,
+                        displayTime: formatTime(busTime, false),
+                        route: `${origin} → ${destination}`,
+                        isTomorrow: false
+                    };
+                }
+            }
+
+            // If no bus today, return first bus tomorrow
+            const firstBus = schedule[0];
+            return {
+                time: firstBus,
+                displayTime: formatTime(firstBus, true),
+                route: `${origin} → ${destination}`,
+                isTomorrow: true
+            };
+        }
+
+        // Handle form submission
+        document.getElementById('busForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const origin = document.getElementById('origin').value;
+            const destination = document.getElementById('destination').value;
+
+            if (!origin || !destination) {
+                return;
+            }
+
+            const result = findNextBus(origin, destination);
+            const resultDiv = document.getElementById('result');
+            const busInfoDiv = document.getElementById('busInfo');
+
+            if (result.error) {
+                busInfoDiv.innerHTML = `<p class="error">${result.error}</p>`;
+            } else {
+                busInfoDiv.innerHTML = `
+                    <p><strong>Route:</strong> ${result.route}</p>
+                    <p><strong>Departure Time:</strong> ${result.displayTime}</p>
+                    <p><strong>Status:</strong> ${result.isTomorrow ? 'Next available (Tomorrow)' : 'Today'}</p>
+                `;
+            }
+
+            resultDiv.classList.add('show');
+        });
+
+        // Update time every second
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+
+        // Prevent selecting same origin and destination
+        document.getElementById('origin').addEventListener('change', function() {
+            const destination = document.getElementById('destination');
+            if (this.value && destination.value === this.value) {
+                destination.value = '';
+            }
+        });
+
+        document.getElementById('destination').addEventListener('change', function() {
+            const origin = document.getElementById('origin');
+            if (this.value && origin.value === this.value) {
+                origin.value = '';
+            }
+        });
+    </script>
+</body>
+</html>
